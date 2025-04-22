@@ -3,6 +3,8 @@ import cv2
 import numpy as np
 from math import degrees, atan2
 import matplotlib.pyplot as plt
+import logging
+from src.rotation_correction_status import RotationCorrectionData, TemplateItem, CorrectionItem
 
 
 class RotationCorrection():
@@ -40,32 +42,67 @@ class RotationCorrection():
 
         return cropped_image, image
 
-    def correct_image(self,image, x: float = 0, y: float = 0, angle: float = 0, shift_first: bool = True, y_bottom_up: bool =True):
+
+    def shift_and_rotate_image(self,
+            image, dx: float =0,
+            dy: float =0,
+            angle: float =0,
+            rotate_first: bool = True,
+            invert_y: bool = False
+    ):
         """
-        This function copies the input image in variable image_out and applies a x and y shift and a rotation to the image_out.
+        Applies translation and rotation to the image with options.
 
         Args:
-            image: image input
-            x: shift in pixel. positive left to right
-            y: shift in pixel. positive bottom to up
-            angle: rotation angle in degrees. Positive CCW
-            shift_first: boolean which determines whether to do the shift or the rotation first
-            y_bottom_up: boolean which determines the direction of the y shift. If "False", then positive direction is up to bottom
+            image: Input image (numpy array).
+            dx: Shift along X-axis in pixels.
+            dy: Shift along Y-axis in pixels.
+            angle: Rotation angle in degrees (counter-clockwise).
+            rotate_first: If True, rotate then shift. If False, shift then rotate.
+            invert_y: If True, reverse direction of dy (positive goes up).
 
         Returns:
-            image_out: image corrected by shift and rotation
+            Transformed image.
         """
+        rows, cols = image.shape[:2]
+        center = (cols / 2, rows / 2)
 
+        # Adjust Y-direction if requested
+        if invert_y:
+            dy = -dy
+
+        # Get rotation matrix
+        R = cv2.getRotationMatrix2D(center, angle, 1.0)
+
+        # Get translation matrix as an affine matrix
+        T = np.array([[1, 0, dx], [0, 1, dy]], dtype=np.float32)
+
+        # Combine transforms
+        if rotate_first:
+            # First rotate, then shift: T * R
+            combined = T @ np.vstack([R, [0, 0, 1]])  # Add 3rd row for matrix mult
+        else:
+            # First shift, then rotate: R * T
+            combined = R @ np.vstack([T, [0, 0, 1]])
+
+        # Extract the top 2 rows for warpAffine
+        M = combined[:2, :]
+
+        # Apply the transformation
+        transformed = cv2.warpAffine(image, M, (cols, rows), flags=cv2.INTER_LINEAR)
+
+        return transformed
 
     def _find_template_location(self, corrected_img, template_img):
         """
         Uses template matching to locate the region in the corrected image that best matches the template.
+        It does not handle rotation at all, and it’s not designed for sub-pixel accuracy or complex misalignments.
         """
         result = cv2.matchTemplate(corrected_img, template_img, cv2.TM_CCOEFF_NORMED)
         _, max_val, _, max_loc = cv2.minMaxLoc(result)
 
         if max_val < 0.5:
-            raise ValueError("Template matching confidence too low.")
+            logging.warning("Template matching confidence too low")
 
         return max_loc  # top-left corner of best match
 
@@ -143,31 +180,147 @@ class RotationCorrection():
             plt.title("Keypoint Matches (Template vs ROI)")
             plt.imshow(match_img, cmap='gray')
             plt.axis("off")
-            plt.show()
+            plt.show(block=True)
 
-            # Overlay warped template on original corrected image
+            # Warp the template image with the estimated transformation
             warped = cv2.warpAffine(template_img, M, (w, h))
-            full_overlay = corrected_img.copy()
-            full_overlay[top_left[1]:top_left[1] + h, top_left[0]:top_left[0] + w] = \
-                cv2.addWeighted(roi, 0.5, warped, 0.5, 0)
-
-            plt.figure(figsize=(6, 6))
-            plt.title("Overlay: Corrected Image + Transformed Template")
-            plt.imshow(full_overlay, cmap='gray')
+            plt.figure(figsize=(12, 6))
+            plt.title("Warp the template image with the estimated transformation")
+            plt.imshow(warped, cmap='gray')
             plt.axis("off")
-            plt.show()
+            plt.show(block=True)
+
+            # Convert to color for overlay visualization
+            if len(corrected_img.shape) == 2:
+                corrected_color = cv2.cvtColor(corrected_img, cv2.COLOR_GRAY2BGR)
+            else:
+                corrected_color = corrected_img.copy()
+
+            if len(warped.shape) == 2:
+                warped_color = cv2.cvtColor(warped, cv2.COLOR_GRAY2BGR)
+            else:
+                warped_color = warped
+
+            # Create overlay
+            overlay = corrected_color.copy()
+
+            # Define ROI bounds
+            y1, y2 = top_left[1], top_left[1] + h
+            x1, x2 = top_left[0], top_left[0] + w
+
+            # Clip if ROI exceeds image boundaries
+            y2 = min(y2, overlay.shape[0])
+            x2 = min(x2, overlay.shape[1])
+            warped_color = warped_color[:y2 - y1, :x2 - x1]
+
+            # Blend only in the ROI
+            roi_overlay = overlay[y1:y2, x1:x2]
+            blended = cv2.addWeighted(roi_overlay, 0.5, warped_color, 0.5, 0)
+            overlay[y1:y2, x1:x2] = blended
+
+            # Draw green rectangle around ROI
+            template_corners = np.array([
+                [[0, 0]],
+                [[template_img.shape[1], 0]],
+                [[template_img.shape[1], template_img.shape[0]]],
+                [[0, template_img.shape[0]]]
+            ], dtype=np.float32)  # shape: (4, 1, 2)
+
+            # Apply the affine transformation to the corners
+            transformed_corners = cv2.transform(template_corners, M).astype(int)
+
+            # Offset by top-left corner to match position in full corrected image
+            transformed_corners += np.array(top_left, dtype=int).reshape(1, 1, 2)
+
+            # Draw the polygon on the overlay
+            cv2.polylines(
+                overlay,
+                [transformed_corners],
+                isClosed=True,
+                color=(0, 255, 0),
+                thickness=2
+            )
+
+            # Step 1: Calculate the top-left corner of the rotated bounding box
+            # Ensure that the result is a tuple of integers (x, y)
+            top_left_rot = tuple(transformed_corners[0][0].astype(int))  # Ensure it's a tuple (x, y)
+
+            # Step 2: Print the type and value to verify it's correct
+            print(f"top_left_rot: {top_left_rot}, type: {type(top_left_rot)}")
+
+            # Check if top_left_rot is indeed a tuple with two integer values
+            if not isinstance(top_left_rot, tuple) or len(top_left_rot) != 2:
+                print(f"Error: top_left_rot is not a tuple with two values. Actual value: {top_left_rot}")
+            else:
+                print(f"top_left_rot is correctly a tuple: {top_left_rot}")
+
+            # Step 3: Calculate angle of rotation for text (using two consecutive corners)
+            dx = transformed_corners[1][0][0] - transformed_corners[0][0][0]  # X diff
+            dy = transformed_corners[1][0][1] - transformed_corners[0][0][1]  # Y diff
+            angle = np.arctan2(dy, dx) * 180 / np.pi  # Convert angle to degrees
+
+            # Step 4: Rotate the text and place it above the top-left corner
+            font = cv2.FONT_HERSHEY_SIMPLEX
+            font_scale = 0.6
+            font_thickness = 2
+            text = "Template"
+
+            # Get the text size to center it properly above the corner
+            (text_width, text_height), _ = cv2.getTextSize(text, font, font_scale, font_thickness)
+
+            # Define the position above the top-left corner (offset by 10 pixels)
+            text_pos = (top_left_rot[0] - text_width // 2, top_left_rot[1] - text_height - 10)
+
+            # Step 5: Ensure rotation center is an integer tuple (recheck)
+            rotation_center = (int(top_left_rot[0]), int(top_left_rot[1]))  # Ensure both x and y are integers
+
+            # Step 6: Apply the rotation matrix to the text
+            M_text = cv2.getRotationMatrix2D(rotation_center, angle, 1)  # Rotation matrix
+
+            rotated_text_overlay = overlay.copy()  # Create a copy for overlaying the text
+
+            # Put the text in the rotated position
+            cv2.putText(
+                rotated_text_overlay,
+                text,
+                text_pos,
+                font,
+                font_scale,
+                (0, 255, 0),
+                font_thickness,
+                cv2.LINE_AA
+            )
+
+            # Step 7: Apply the rotation matrix only to the text (not the entire image)
+            final_overlay = cv2.warpAffine(rotated_text_overlay, M_text,
+                                           (rotated_text_overlay.shape[1],
+                                            rotated_text_overlay.shape[0]))  # Only rotate text
+
+            # Show result
+            plt.figure(figsize=(6, 6))
+            plt.title("Overlay: Corrected Image + Transformed Template + ROI Box with Rotated Text")
+            plt.imshow(cv2.cvtColor(final_overlay, cv2.COLOR_BGR2RGB))
+            plt.axis("off")
+            plt.show(block=True)
 
         return dx, dy, angle
 
 
 
 rc = RotationCorrection()
+rc_data = RotationCorrectionData()
 
 template, dut = rc.load_image("image_1.png")
-cv2.imshow("Cropped ROI", template)
-cv2.waitKey(0)
-cv2.destroyAllWindows()
+rc_data.add_template_item("DUT_1","small",TemplateItem(22, template, 1.0, 2.0, 3.0))
+rc_data.add_correction_item("DUT1","small",50.0, CorrectionItem(50.0, dut, 0, 0, 0))
+shifted = rc.shift_and_rotate_image(image= dut, dx= 5,dy= 7, angle= 0, rotate_first= False, invert_y= False)
+rotated = rc.shift_and_rotate_image(image= dut, dx= 5,dy= 7, angle= 10, rotate_first= False, invert_y= False)
+dx1,dy1,angle1 = rc.calculate_offset_and_rotation(template_img= template, corrected_img= dut, visualize= True)
+dx2,dy2,angle2 = rc.calculate_offset_and_rotation(template_img= template, corrected_img= shifted, visualize= True)
+dx3,dy3,angle3 = rc.calculate_offset_and_rotation(template_img= template, corrected_img= rotated, visualize= True)
 
+
+print(rc)
 # Assuming you already have the dataclass setup and images loaded
 """template_item = rc.get_template_item(name, item_id)
 correction_item = rc.get_correction_item(name, temp, item_id)

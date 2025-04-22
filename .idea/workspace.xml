@@ -4,7 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="cd4a5f76-6d7a-459c-aa6b-7c54e744fc74" name="Changes" comment="">
+    <list default="true" id="cd4a5f76-6d7a-459c-aa6b-7c54e744fc74" name="Changes" comment="Added patternmatching function">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/rotation_corrcetion.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/rotation_corrcetion.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/rotation_correction_status.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/rotation_correction_status.py" afterDir="false" />
@@ -42,6 +42,11 @@
     "last_opened_file_path": "C:/01_DEVELOPMENT/python/RotationCorrection/pythonProject1/src"
   }
 }]]></component>
+  <component name="RecentsManager">
+    <key name="CopyFile.RECENT_KEYS">
+      <recent name="C:\01_DEVELOPMENT\python\RotationCorrection\pythonProject1\src" />
+    </key>
+  </component>
   <component name="SharedIndexes">
     <attachedChunks>
       <set>
@@ -58,16 +63,24 @@
       <option name="presentableId" value="Default" />
       <updated>1744875694059</updated>
     </task>
+    <task id="LOCAL-00001" summary="Added patternmatching function">
+      <option name="closed" value="true" />
+      <created>1745315610762</created>
+      <option name="number" value="00001" />
+      <option name="presentableId" value="LOCAL-00001" />
+      <option name="project" value="LOCAL" />
+      <updated>1745315610762</updated>
+    </task>
+    <option name="localTasksCounter" value="2" />
     <servers />
+  </component>
+  <component name="VcsManagerConfiguration">
+    <MESSAGE value="Added patternmatching function" />
+    <option name="LAST_COMMIT_MESSAGE" value="Added patternmatching function" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
       <breakpoints>
-        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
-          <url>file://$PROJECT_DIR$/src/rotation_corrcetion.py</url>
-          <line>7</line>
-          <option name="timeStamp" value="1" />
-        </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/src/rotation_correction_status.py</url>
           <line>64</line>
@@ -75,8 +88,8 @@
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/src/rotation_corrcetion.py</url>
-          <line>165</line>
-          <option name="timeStamp" value="8" />
+          <line>322</line>
+          <option name="timeStamp" value="9" />
         </line-breakpoint>
       </breakpoints>
     </breakpoint-manager>

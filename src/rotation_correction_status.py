@@ -17,7 +17,7 @@ class CorrectionItem:
     y: float
     z: float
 
-class RotationCorrection:
+class RotationCorrectionData:
     def __init__(self):
         self.template: Dict[str, Dict[str, TemplateItem]] = {}  # name -> item_id -> TemplateItem
         self.correction_list: Dict[str, Dict[float, Dict[str, CorrectionItem]]] = {}  # name -> temp -> item_id -> CorrectionItem
@@ -41,8 +41,8 @@ class RotationCorrection:
         return self.correction_list.get(name, {}).get(temperature, {}).get(item_id)
 
 # --- Test Code ---
-
-rc = RotationCorrection()
+"""
+rc = RotationCorrectionData()
 
 rc.add_template_item("DUT_1", "small", TemplateItem(22, "image1", 1.0, 2.0, 3.0))
 rc.add_template_item("DUT_1", "large", TemplateItem(22, "image1", 1.0, 2.0, 3.0))
@@ -64,4 +64,4 @@ correction = rc.get_correction_item("DUT_2",80,"small")
 
 print(rc)
 
-# You can now print or debug individual items
+"""
