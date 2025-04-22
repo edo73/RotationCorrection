@@ -34,7 +34,7 @@ class RotationCorrection:
             self.correction_list[name][temperature] = {}
         self.correction_list[name][temperature][item_id] = item
 
-    def get_template_by_name(self, name: str, item_id: str) -> Optional[TemplateItem]:
+    def get_template_item(self, name: str, item_id: str) -> Optional[TemplateItem]:
         return self.template.get(name, {}).get(item_id)
 
     def get_correction_item(self, name: str, temperature: float, item_id: str) -> Optional[CorrectionItem]:
@@ -46,17 +46,21 @@ rc = RotationCorrection()
 
 rc.add_template_item("DUT_1", "small", TemplateItem(22, "image1", 1.0, 2.0, 3.0))
 rc.add_template_item("DUT_1", "large", TemplateItem(22, "image1", 1.0, 2.0, 3.0))
-rc.add_template_item("DUT_2", "small", TemplateItem(22, "image1", 1.0, 2.0, 3.0))
-rc.add_template_item("DUT_2", "large", TemplateItem(22, "image1", 1.0, 2.0, 3.0))
+rc.add_template_item("DUT_2", "small", TemplateItem(22, "image2", 1.0, 2.0, 3.0))
+rc.add_template_item("DUT_2", "large", TemplateItem(22, "image2", 1.0, 2.0, 3.0))
 
 rc.add_correction_item("DUT_1", 50.0, "small", CorrectionItem(50.0, "imgA", 0, 0, 0))
-rc.add_correction_item("DUT_1", 50.0, "large", CorrectionItem(80.0, "imgA", 0, 0, 0))
-rc.add_correction_item("DUT_1", 80.0, "small", CorrectionItem(50.0, "imgA", 0, 0, 0))
+rc.add_correction_item("DUT_1", 50.0, "large", CorrectionItem(50.0, "imgA", 0, 0, 0))
+rc.add_correction_item("DUT_1", 80.0, "small", CorrectionItem(80.0, "imgA", 0, 0, 0))
 rc.add_correction_item("DUT_1", 80.0, "large", CorrectionItem(80.0, "imgA", 0, 0, 0))
 rc.add_correction_item("DUT_2", 50.0, "small", CorrectionItem(50.0, "imgA", 0, 0, 0))
-rc.add_correction_item("DUT_2", 50.0, "large", CorrectionItem(80.0, "imgA", 0, 0, 0))
-rc.add_correction_item("DUT_2", 80.0, "small", CorrectionItem(50.0, "imgA", 0, 0, 0))
+rc.add_correction_item("DUT_2", 50.0, "large", CorrectionItem(50.0, "imgA", 0, 0, 0))
+rc.add_correction_item("DUT_2", 80.0, "small", CorrectionItem(80.0, "imgA", 0, 0, 0))
 rc.add_correction_item("DUT_2", 80.0, "large", CorrectionItem(80.0, "imgA", 0, 0, 0))
+
+template = rc.get_template_item("DUT_2", "large")
+correction = rc.get_correction_item("DUT_2",80,"small")
+
 
 print(rc)
 
